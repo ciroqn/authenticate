@@ -1,10 +1,11 @@
 //jshint esversion:6
 require("dotenv").config();
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
+const saltRounds = 10;
 
 const app = express();
 
@@ -38,18 +39,22 @@ app.get("/register", function(req, res) {
 
 // get info from html form and save as new user. This info is from /register page
 app.post("/register", function(req, res) {
-  const newUser = new User({
-    email: req.body.username,
-    password: md5(req.body.password)
-  })
-  // the secrets page can only be accessed when a user signs up. notice how 'secrets' does not have a get route.
-  newUser.save(function(err) {
-    if (err) {
-      console.log(err);
-    } else {
-      res.render("secrets");
-    }
-  })
+
+  // auto-generates a hash using the hash method. saltrounds kept to 10 to reduce time. see docs
+  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+    const newUser = new User({
+      email: req.body.username,
+      password: hash
+    })
+    // the secrets page can only be accessed when a user signs up. notice how 'secrets' does not have a get route.
+    newUser.save(function(err) {
+      if (err) {
+        console.log(err);
+      } else {
+        res.render("secrets");
+      }
+    })
+  });
 })
 
 app.post("/login", function(req, res) {
@@ -63,9 +68,11 @@ app.post("/login", function(req, res) {
       console.log(err);
     } else {
       if (foundUser) {
-        if (foundUser.password === password) {
-          res.render("secrets");
-        }
+        bcrypt.compare(password, foundUser.password, function(err, result) {
+          if (result === true) {
+            res.render("secrets");
+          }
+        });
       }
     }
   })
