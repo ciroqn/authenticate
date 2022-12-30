@@ -22,10 +22,12 @@ app.use(session({
   saveUninitialized: false
 }));
 
+// tell app to initialise the package and then to tell passport to set up a session
 app.use(passport.initialize());
 app.use(passport.session());
 
 mongoose.connect("mongodb://localhost:27017/userDB");
+// to suppress deprecation warning
 mongoose.set("strictQuery", false);
 
 // create Schema
@@ -34,10 +36,12 @@ const userSchema = new mongoose.Schema({
   password: String
 });
 
+// the mongoose schema above can utilise the passport package (i.e. hash and salt)
 userSchema.plugin(passportLocalMongoose);
 
 const User = new mongoose.model("User", userSchema);
 
+// this will authenticate users
 passport.use(User.createStrategy());
 
 passport.serializeUser(User.serializeUser());
@@ -57,10 +61,20 @@ app.get("/register", function(req, res) {
 
 app.get("/secrets", function(req, res) {
   if (req.isAuthenticated()) {
-    res.render("/secrets");
+    res.render("secrets");
   } else {
     res.redirect("/login");
   }
+})
+
+app.get("/logout", function(req, res) {
+  req.logout(function(err) {
+    if (err) {
+      console.log(err)
+    } else {
+      res.redirect("/");
+    }
+  });
 })
 
 // get info from html form and save as new user. This info is from /register page
@@ -79,23 +93,22 @@ app.post("/register", function(req, res) {
 })
 
 app.post("/login", function(req, res) {
-  const username = req.body.username;
-  const password = req.body.password;
+  const user = new User({
+    username: req.body.username,
+    password: req.body.password
+  });
 
-  User.findOne({email: username}, function(err, foundUser) {
+  // using passport method
+  req.login(user, function(err) {
     if (err) {
       console.log(err);
     } else {
-      if (foundUser) {
-        bcrypt.compare(password, foundUser.password, function(err, result) {
-          if (result === true) {
-            res.render("secrets");
-          }
-        });
-      }
+      passport.authenticate("local")(req, res, function() {
+        res.redirect("/secrets");
+      })
     }
   })
-})
+});
 
 
 app.listen(3000, function() {
