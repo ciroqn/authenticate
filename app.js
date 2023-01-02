@@ -37,7 +37,8 @@ mongoose.set("strictQuery", false);
 const userSchema = new mongoose.Schema({
   email: String,
   password: String,
-  googleId: String
+  googleId: String,
+  secret: String
 });
 
 // the mongoose schema above can utilise the passport package (i.e. hash and salt)
@@ -99,11 +100,39 @@ app.get("/register", function(req, res) {
 });
 
 app.get("/secrets", function(req, res) {
+  // lets users and visitors to see ALL secrets posted
+  User.find({secret: {$ne:null}}, function(err, foundUsers) {
+    if (err) {
+      console.log(err);
+    } else {
+      res.render("secrets", {usersWithSecrets: foundUsers})
+    }
+  })
+});
+
+app.get("/submit", function(req, res) {
   if (req.isAuthenticated()) {
-    res.render("secrets");
+    res.render("submit");
   } else {
     res.redirect("/login");
   }
+});
+
+app.post("/submit", function(req, res) {
+  const submittedSecret = req.body.secret;
+  // find user in db so that we can store their secret. the user's id can be found in the req.
+  User.findById(req.user.id, function(err, foundUser) {
+    if (err) {
+      console.log(err)
+    } else {
+      if (foundUser) {
+        foundUser.secret = submittedSecret;
+        foundUser.save(function(){
+          res.redirect("/secrets");
+        })
+      }
+    }
+  })
 })
 
 app.get("/logout", function(req, res) {
