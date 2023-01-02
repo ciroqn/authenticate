@@ -18,6 +18,7 @@ app.use(bodyParser.urlencoded({
   extended: true
 }));
 
+// "secret" used as example (not in use)
 app.use(session({
   secret: "My Enigma Machine.",
   resave: false,
